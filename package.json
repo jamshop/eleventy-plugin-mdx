@@ -1,0 +1,24 @@
+{
+  "name": "eleventy-plugin-mdx-alpha",
+  "author": "Mike Riethmuller",
+  "version": "0.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@babel/core": "^7.10.4",
+    "@babel/preset-env": "^7.10.4",
+    "@babel/preset-react": "^7.10.4",
+    "@mdx-js/loader": "^1.6.16",
+    "@mdx-js/mdx": "^1.6.7",
+    "@mdx-js/runtime": "^1.6.7",
+    "babel-loader": "^8.1.0",
+    "memory-fs": "^0.5.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "remark-frontmatter": "^2.0.0",
+    "require-from-string": "^2.0.2",
+    "svg-inline-loader": "^0.8.2",
+    "terser-webpack-plugin": "^4.1.0",
+    "webpack": "^4.44.1"
+  }
+}
