@@ -83,12 +83,4 @@ You might be thinking we could make a best guess how to serialise these values. 
 
 ## This is not an SPA
 
-Not that these MDX template do not generate single page apps. A bundle is generated for each page and currently (I think without changes to 11ty) I cannot output a file to the generated site from a plugin. Which means I cannot bundle React separately.
-
-I'm actively looking for a solution to this and I don't think a CND link is the right answer.
-
-I'm really open to hearing ideas about how we can make the bundling better and if the splitting of React can be solved perhaps there are also other solutions that could allow for shared chunks between pages.
-
-**Final alpha note:** The webpack stuff is really hard and it's not my favourite thing, I'm really open to suggestions on how to improve it and I'm especially open to suggestions on how to improve the bundle size.
-
-TODO: Add example 11ty project to this repo.
+**Note**: These MDX template do not generate single page apps. A bundle is generated for each page and currently (I think without changes to 11ty) I cannot output a file to the generated site from a plugin. Which means I cannot bundle React separately.
