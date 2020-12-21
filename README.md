@@ -1,4 +1,4 @@
-# 11ty MDX Plugin (Alpha)
+# Eleventy Plugin - MDX
 
 This plugin adds an mdx template format to 11ty.
 
