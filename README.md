@@ -48,7 +48,7 @@ I've been meaning to write some test for all this and more - it's past time for 
 
 ## Static rendering vs Hydration
 
-For the most part you will be able to just use MDX and have it render on the server without a single care. This is the happy path and will yield the best results for you user too. I strongly recommend staying on the happy path.
+For the most part you will be able to just use MDX and have it render on the server without a single care. This is the happy path and will yield the best results for your users too. I strongly recommend staying on the happy path.
 
 Then there is hydration. A statically rendered React application won't be interactive in the way a client-side application is. When we render it to HTML it becomes dehydrated, we loose all the juicy JavaScript events and fluid statefulness. To 'hydrate' it on the client we inject fresh data and our application comes back to life.
 
