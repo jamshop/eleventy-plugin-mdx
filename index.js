@@ -36,9 +36,8 @@ const mdxBuildPlugin = (eleventyConfig, { includeCDNLinks=false } = {}) => {
         minify: process.NODE_ENV === "development" ? false : true,
         external: ['react', 'react-dom'],
         write: false,
-        plugins: [...esBuildOptions.plugins, esBuildMDXPlugin({ content })],
+        plugins: [esBuildMDXPlugin({ content })],
         metafile: true,
-        ...esBuildOptions,
         bundle: true,
         entryPoints: [inputPath],
       }
