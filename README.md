@@ -4,14 +4,16 @@ This plugin adds an mdx template format to 11ty.
 
 ## Usage
 
-No npm install just yet this is alpha testing and once a few optimisations are done I'll publish on NPM. Until then please raise issues and give me feedback.
+Install:
 
-Download or clone the repo and then require it in your 11ty config file:
+```js
+npm install @jamshop/eleventy-plugin-mdx
+```
 
 In your 11ty config:
 
 ```js
-const mdxPlugin = require("../path/to/eleventy-plugin-mdx");
+const mdxPlugin = require("@jamshop/eleventy-plugin-mdx");
 module.exports = (eleventyConfig) => {
   eleventyConfig.addPlugin(mdxPlugin);
 };
@@ -19,22 +21,11 @@ module.exports = (eleventyConfig) => {
 
 ## Options
 
-You can pass some options to the plugin including `components` and `webpackConfig`.
+If you're using static rendering, which is highly recommended for MDX, you will not need to configure any options for this plugin. If you do hydrate pages a small JS bundle is added to pages and you'll need to make sure that React and ReactDom are available on the global scope. 
 
-The components object is a mapping between the HTML name and the desired component you’d like to render. You can also provide other global mappings for custom components this way, See: https://mdxjs.com/getting-started#working-with-components
+To avoid clashes I'm not bundling React by default with the front-end code. I have provided an option `includeCDNLinks` which, as the name suggest, will include React and ReactDOM via CDN links, if you're not providing your own javascript bundle this might be an easy option for you.
 
-**Alpha note**: I expect this to work for the server render but not after hydration. Replacing top level components remains largely untested. Please open issues.
-
-The `webpackConfig` option allows you to extend the default webpack options. This is provided as an escape hatch, but like an escape hatch on a plane if you open it at the wrong time or the wrong way explosive decompression is likely. I'll be honest, it's probably best if you just don't touch this.
-
-```js
-module.exports = (eleventyConfig) => {
-  eleventyConfig.addPlugin(mdxPlugin, {
-    components: {},
-    webpackConfig: {},
-  });
-};
-```
+Remember that static rendering doesn't require any javascript on the front-end, CDN links won't be included and are not required for any pages unless the `serializeEleventyProps` function is exported.
 
 ## MDX stuff
 
@@ -42,21 +33,21 @@ This plugin should do all the MDX stuff. There is a lot more about that here: ht
 
 - Import local modules from javascript and MDX files.
 - Import and export data from MDX.
-- Import from installed packages.
+- Import components from libraries.
 
-I've been meaning to write some test for all this and more - it's past time for that. BTW, pull requests are most welcome.
+I've been meaning to write some test for all this and more - BTW, pull requests are most welcome.
 
 ## Static rendering vs Hydration
 
 For the most part you will be able to just use MDX and have it render on the server without a single care. This is the happy path and will yield the best results for your users too. I strongly recommend staying on the happy path.
 
-Then there is hydration. A statically rendered React application won't be interactive in the way a client-side application is. When we render it to HTML it becomes dehydrated, we loose all the juicy JavaScript events and fluid statefulness. To 'hydrate' it on the client we inject fresh data and our application comes back to life.
+Then there is hydration. A statically rendered React application won't be interactive in the way a client-side application is. When we render it to HTML it becomes dehydrated, we loose all the juicy JavaScript events and fluid statefulness. To 'hydrate' it on the client we need to inject fresh data so that our application comes back to life.
 
-This is complicated because the state that we gave the application on the server had access to all the rich 11ty data that we don't have on the client.
+This is complicated because on the server we have access to everything that 11ty knows about. This often called the 'context' and it includes all 11ty data about posts pages etc... we don't have on the client.
 
-That's why, **for each mdx page you want to hydrate, you need to export a serializeEleventyProps function**. This function is required so that 11ty knows how to serialise the props you need to the page.
+That's why, **for each mdx page you want to hydrate, you need to export a serializeEleventyProps function**. This function is required so that 11ty knows how to serialise the props you need on the page.
 
-For example on this page the server knows the `count` and `title` value from front-matter. But since we want the `<Counter />` component to be interactive, we need the `serializeEleventyProps` function to tell the client how to serialize these values.
+For example on this page the server knows the `count` and `title` value from front-matter. But since we want the `<Counter />` component to be interactive, we need to use the `serializeEleventyProps` function to tell the client how to serialize these values.
 
 ```js
 ---
@@ -77,10 +68,10 @@ export const serializeEleventyProps = (props) => ({
 });
 ```
 
-You might be thinking we could make a best guess how to serialise these values. However since we don't know what props are used, and we want to avoid putting the entire context object in the client, it's best to just tell us what props you need in this way.
+You might be thinking we could make a best guess how to serialise these values. However we don't know what props are used in the MDX, and we were to give it all the data in the context the client bundle would be HUGE. Putting the entire context object in the client is a very bad idea, it's best to just tell us what props you need and `serializeEleventyProps` is the way.
 
-**Alpha note:** I'm looking for a better name for this function. Suggestions please.
+Alternatively, just use static components.
 
 ## This is not an SPA
 
-**Note**: These MDX template do not generate single page apps. A bundle is generated for each page and currently (I think without changes to 11ty) I cannot output a file to the generated site from a plugin. Which means I cannot bundle React separately.
+**Note**: These MDX template do not generate single page apps. A bundle is generated for each page.

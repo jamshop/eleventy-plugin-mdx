@@ -1,85 +1,74 @@
 const React = require("react");
 const { renderToString, renderToStaticMarkup } = require("react-dom/server");
-const theSadness = require("./webpack-sadness");
-const path = require("path");
+const { build, transformSync } = require("esbuild");
+const mdx = require("@mdx-js/mdx");
 const requireFromString = require("require-from-string");
 const ROOT_ID = "MDX_ROOT";
 
-let HYDRATE_SCRIPT = "";
-module.exports = (
-  eleventyConfig,
-  { components = {}, webpackConfig = {} } = {}
-) => {
+const esBuildMDXPlugin = ({ content }) => ({
+  name: "esbuild-mdx",
+  setup(build) {
+    build.onLoad({ filter: /\.mdx?$/ }, async () => {
+      return {
+        contents:`import React from "react";
+        import { mdx } from "@mdx-js/react";
+        ${await mdx(content)}`,
+        loader: "jsx",
+      }
+    })
+  },
+});
+
+const doEsBuild = async (options) => {
+  const { outputFiles } = await build(options);
+  return new TextDecoder("utf-8").decode(outputFiles[0].contents);
+}
+
+const mdxBuildPlugin = (eleventyConfig, { includeReact=false } = {}) => {
   process.env.ELEVENTY_EXPERIMENTAL = "true";
   eleventyConfig.addTemplateFormats("mdx");
   eleventyConfig.addExtension("mdx", {
-    init: async () => {
-      const sadness = await theSadness(
-        {
-          hydrate: require.resolve(path.join(__dirname, "hydrate.js")),
-        },
-        { externals: undefined, ...webpackConfig }
-      );
-      HYDRATE_SCRIPT = sadness["hydrate.js"];
-    },
-    compile: (_, inputPath) => async (props) => {
-      let hydrateScript = "";
-      // Get webpack to compile the actual file so it can resolve includes
-      // I'd rather build some code from the mdxString, but impossible?
-      const serverSadness = await theSadness(
-        { main: inputPath },
-        { target: "node" }
-      );
-      const sadness = await theSadness({ main: inputPath });
-
-      // "require" the sadness from a string
-      const { Component, serializeEleventyProps } = requireFromString(
-        `const React = require("react");
-${serverSadness["main.js"]}
-const Component = MDXPlugin_main.default || MDXPlugin_main;
-const serializeEleventyProps = MDXPlugin_main.serializeEleventyProps;
-module.exports = { Component, serializeEleventyProps }
-`
-      );
-
-      const rootComponent = React.createElement(
-        "div",
-        // I'm wrapping this in a div with an explicit ID to ensure I always hydrate the right container
-        { id: ROOT_ID },
-        React.createElement(Component, { components, ...props }, null)
-      );
-
-      // Maybe unsafe
-      if (serializeEleventyProps) {
-        hydrateScript = `
-        <script>
-        (function(){
-          ${HYDRATE_SCRIPT}
-          const hydrate = MDXPlugin_hydrate.hydrate;
-          const React = MDXPlugin_hydrate.React;
-
-          ${sadness["main.js"]}
-          const Component = MDXPlugin_main.default || MDXPlugin_main;
-          const props = JSON.parse(${JSON.stringify(
-            JSON.stringify(serializeEleventyProps(props))
-          )});
-          
-          hydrate(
-            Component,
-            { components: {}, ...props},
-            document.querySelector('#${ROOT_ID}')
-          );
-        })();
-        </script>`;
+    getData: true,
+    getInstanceFromInputPath: () => {},
+    init: () => {},
+    compile: (content, inputPath) => async (props) => {
+      const esbuildOptions = {
+        minify: process.NODE_ENV === "development" ? false : true,
+        external: ['react', 'react-dom'],
+        write: false,
+        plugins: [...esBuildOptions.plugins, esBuildMDXPlugin({ content })],
+        metafile: true,
+        ...esBuildOptions,
+        bundle: true,
+        entryPoints: [inputPath],
       }
 
-      // If they opt for a static render let's give them `renderToStaticMarkup`
-      // Otherwise we will hydrate
-      const mdxMarkUp = serializeEleventyProps
-        ? renderToString(rootComponent)
-        : renderToStaticMarkup(rootComponent);
-
-      return mdxMarkUp + "\n" + hydrateScript;
-    },
+      const { serializeEleventyProps, ...defaultExport } = requireFromString(await doEsBuild({ platform: 'node', ...esbuildOptions }));
+      
+      let hydrateScript = "";
+      if (serializeEleventyProps) {
+        hydrateScript = transformSync(`const require = (e) => { if (e ==="react") return window.React };
+        const hydrate = (Component, props, el) => ReactDOM.hydrate(React.createElement(Component, props, null), el);
+        ${await doEsBuild({ platform: 'browser', globalName: 'Component', ...esbuildOptions })};
+        const props = JSON.parse(${JSON.stringify(JSON.stringify(serializeEleventyProps(props)))});
+        hydrate(Component.default,props,document.querySelector('#${ROOT_ID}'));
+        `,
+        {
+          format: 'iife',
+          minify: false
+        }).code;
+      }
+      
+      const rootComponent = React.createElement( "div", { id: ROOT_ID }, React.createElement(defaultExport.default, props, null));
+      if(!serializeEleventyProps) return renderToStaticMarkup(rootComponent);
+      return `
+      ${includeReact ? `<script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+      <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>`:""}
+      ${renderToString(rootComponent)}
+      <script>${hydrateScript}</script>`
+    }
   });
+
 };
+
+module.exports = mdxBuildPlugin;
