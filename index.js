@@ -24,7 +24,7 @@ const doEsBuild = async (options) => {
   return new TextDecoder("utf-8").decode(outputFiles[0].contents);
 }
 
-const mdxBuildPlugin = (eleventyConfig, { includeReact=false } = {}) => {
+const mdxBuildPlugin = (eleventyConfig, { includeCDNLinks=false } = {}) => {
   process.env.ELEVENTY_EXPERIMENTAL = "true";
   eleventyConfig.addTemplateFormats("mdx");
   eleventyConfig.addExtension("mdx", {
@@ -62,7 +62,7 @@ const mdxBuildPlugin = (eleventyConfig, { includeReact=false } = {}) => {
       const rootComponent = React.createElement( "div", { id: ROOT_ID }, React.createElement(defaultExport.default, props, null));
       if(!serializeEleventyProps) return renderToStaticMarkup(rootComponent);
       return `
-      ${includeReact ? `<script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+      ${includeCDNLinks ? `<script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
       <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>`:""}
       ${renderToString(rootComponent)}
       <script>${hydrateScript}</script>`
