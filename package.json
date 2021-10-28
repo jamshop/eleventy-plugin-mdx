@@ -1,6 +1,6 @@
 {
   "name": "@jamshop/eleventy-plugin-mdx",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "index.js",
   "repository": "jamshop/eleventy-plugin-esbuild",
   "author": {
@@ -11,9 +11,10 @@
   "license": "MIT",
   "dependencies": {
     "@mdx-js/mdx": "^1.6.22",
+    "@mdx-js/react": "^1.6.22",
+    "esbuild": "^0.13.9",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
-    "esbuild": "^0.13.9",
     "require-from-string": "^2.0.2"
   }
 }
