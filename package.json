@@ -1,8 +1,13 @@
 {
-  "name": "eleventy-plugin-mdx",
-  "author": "Mike Riethmuller",
+  "name": "@jamshop/eleventy-plugin-mdx",
   "version": "0.0.1",
   "main": "index.js",
+  "repository": "jamshop/eleventy-plugin-esbuild",
+  "author": {
+    "name": "Mike Riethmuller",
+    "email": "mike@madebymike.com.au",
+    "url": "https://madebymike.com.au"
+  },
   "license": "MIT",
   "dependencies": {
     "@mdx-js/mdx": "^1.6.22",
