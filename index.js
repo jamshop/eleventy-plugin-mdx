@@ -46,15 +46,15 @@ const mdxBuildPlugin = (eleventyConfig, { includeCDNLinks=false } = {}) => {
       
       let hydrateScript = "";
       if (serializeEleventyProps) {
-        hydrateScript = transformSync(`const require = (e) => { if (e ==="react") return window.React };
-        const hydrate = (Component, props, el) => ReactDOM.hydrate(React.createElement(Component, props, null), el);
+        hydrateScript = transformSync(`
+        const require = (e) => { if (e ==="react") return window.React; }; 
         ${await doEsBuild({ platform: 'browser', globalName: 'Component', ...esbuildOptions })};
         const props = JSON.parse(${JSON.stringify(JSON.stringify(serializeEleventyProps(props)))});
-        hydrate(Component.default,props,document.querySelector('#${ROOT_ID}'));
+        ReactDOM.hydrate(React.createElement(Component.default, props, null), document.querySelector('#${ROOT_ID}'));
         `,
         {
           format: 'iife',
-          minify: false
+          minify: true
         }).code;
       }
       
