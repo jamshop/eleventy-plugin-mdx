@@ -37,6 +37,51 @@ This plugin should do all the MDX stuff. There is a lot more about that here: ht
 
 I've been meaning to write some test for all this and more - BTW, pull requests are most welcome.
 
+### Front matter and pagination
+
+Front matter is awesome and central to 11ty so I wanted this to work out of the box. You can include front matter in your mdx files, but you can also export a `data` object similar to other JS templaing language in 11ty. You can even mix and match!
+
+This works:
+
+```
+---
+title: AllPages
+layout: "page.njk"
+pagination:
+  data: pages
+  size: 1
+  alias: file
+permalink: "{{ file.slug }}/"
+---
+
+<h1>{props.file.title}</h1>
+
+Hello world!
+```
+
+
+Alternatively you can also do this:
+
+```
+---
+title: AllPages
+layout: "page.njk"
+---
+
+export const data = {
+  pagination: {
+      data: "pages",
+      size: 1,
+      alias: "file",
+    },
+    permalink: (data) => `${data.file.slug}/`
+}
+
+<h1>{props.file.title}</h1>
+
+Hello world!
+```
+
 ## Static rendering vs Hydration
 
 For the most part you will be able to just use MDX and have it render on the server without a single care. This is the happy path and will yield the best results for your users too. I strongly recommend staying on the happy path.

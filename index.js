@@ -1,8 +1,14 @@
 const React = require("react");
+const runtime = require('react/jsx-runtime.js');
 const { renderToString, renderToStaticMarkup } = require("react-dom/server");
 const { build, transformSync } = require("esbuild");
-const mdx = require("@mdx-js/mdx");
-const requireFromString = require("require-from-string");
+const mdx = require("./mdx");
+const fs = require("fs");
+
+// Kinda hate that I am doubling up on gray-matter & handlebars, would love to be able to hook into the existing template engine
+const matter = require('gray-matter');
+const handlebars = require("handlebars");
+
 const ROOT_ID = "MDX_ROOT";
 
 const esBuildMDXPlugin = ({ content }) => ({
@@ -10,9 +16,9 @@ const esBuildMDXPlugin = ({ content }) => ({
   setup(build) {
     build.onLoad({ filter: /\.mdx?$/ }, async () => {
       return {
-        contents:`import React from "react";
+        contents: `import React from "react";
         import { mdx } from "@mdx-js/react";
-        ${await mdx(content)}`,
+        ${await mdx.compile(content)}`,
         loader: "jsx",
       }
     })
@@ -24,26 +30,43 @@ const doEsBuild = async (options) => {
   return new TextDecoder("utf-8").decode(outputFiles[0].contents);
 }
 
-const mdxBuildPlugin = (eleventyConfig, { includeCDNLinks=false } = {}) => {
+const mdxBuildPlugin = (eleventyConfig, { includeCDNLinks = false } = {}) => {
   process.env.ELEVENTY_EXPERIMENTAL = "true";
   eleventyConfig.addTemplateFormats("mdx");
   eleventyConfig.addExtension("mdx", {
+    read: false,
+    data: true,
     getData: true,
-    getInstanceFromInputPath: () => {},
-    init: () => {},
-    compile: (content, inputPath) => async (props) => {
+    getInstanceFromInputPath: async (inputPath) => {
+      const {content, data } = matter(await fs.promises.readFile(inputPath, "utf8"));
+      const { serializeEleventyProps = false, default: component, data: exportData } = await mdx.evaluate(content, { ...runtime });
+      return {
+        data: {
+          serializeEleventyProps,
+          ___mdx_content: content,
+          ___mdx_component: component,
+          ...data,
+          ...exportData,
+        },
+      };
+    },
+    init: () => { },
+    compile: (permalink, inputPath) => async ({ serializeEleventyProps, ___mdx_content, ___mdx_component, ...props }) => {
+
+      if(permalink) {
+        return (typeof permalink === 'function') ? permalink(props) : handlebars.compile(permalink)(props);
+      }
+
       const esbuildOptions = {
         minify: process.NODE_ENV === "development" ? false : true,
         external: ['react', 'react-dom'],
         write: false,
-        plugins: [esBuildMDXPlugin({ content })],
+        plugins: [esBuildMDXPlugin({ content: ___mdx_content })],
         metafile: true,
         bundle: true,
         entryPoints: [inputPath],
       }
 
-      const { serializeEleventyProps, ...defaultExport } = requireFromString(await doEsBuild({ platform: 'node', ...esbuildOptions }));
-      
       let hydrateScript = "";
       if (serializeEleventyProps) {
         hydrateScript = transformSync(`
@@ -52,17 +75,17 @@ const mdxBuildPlugin = (eleventyConfig, { includeCDNLinks=false } = {}) => {
         const props = JSON.parse(${JSON.stringify(JSON.stringify(serializeEleventyProps(props)))});
         ReactDOM.hydrate(React.createElement(Component.default, props, null), document.querySelector('#${ROOT_ID}'));
         `,
-        {
-          format: 'iife',
-          minify: true
-        }).code;
+          {
+            format: 'iife',
+            minify: true
+          }).code;
       }
-      
-      const rootComponent = React.createElement( "div", { id: ROOT_ID }, React.createElement(defaultExport.default, props, null));
-      if(!serializeEleventyProps) return renderToStaticMarkup(rootComponent);
+
+      const rootComponent = React.createElement("div", { id: ROOT_ID }, React.createElement(___mdx_component, props, null));
+      if (!serializeEleventyProps) return renderToStaticMarkup(rootComponent);
       return `
       ${includeCDNLinks ? `<script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
-      <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>`:""}
+      <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>`: ""}
       ${renderToString(rootComponent)}
       <script>${hydrateScript}</script>`
     }
