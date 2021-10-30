@@ -1,7 +1,7 @@
 const React = require("react");
-const runtime = require('react/jsx-runtime.js');
 const { renderToString, renderToStaticMarkup } = require("react-dom/server");
 const { build, transformSync } = require("esbuild");
+const requireFromString = require('require-from-string');
 const mdx = require("./mdx");
 const fs = require("fs");
 
@@ -10,6 +10,14 @@ const matter = require('gray-matter');
 const handlebars = require("handlebars");
 
 const ROOT_ID = "MDX_ROOT";
+
+const ESBUILD_OPTIONS = {
+  minify: process.NODE_ENV === "development" ? false : true,
+  external: ['react', 'react-dom'],
+  write: false,
+  metafile: true,
+  bundle: true,
+}
 
 const esBuildMDXPlugin = ({ content }) => ({
   name: "esbuild-mdx",
@@ -31,6 +39,7 @@ const doEsBuild = async (options) => {
 }
 
 const mdxBuildPlugin = (eleventyConfig, { includeCDNLinks = false } = {}) => {
+
   process.env.ELEVENTY_EXPERIMENTAL = "true";
   eleventyConfig.addTemplateFormats("mdx");
   eleventyConfig.addExtension("mdx", {
@@ -38,40 +47,47 @@ const mdxBuildPlugin = (eleventyConfig, { includeCDNLinks = false } = {}) => {
     data: true,
     getData: true,
     getInstanceFromInputPath: async (inputPath) => {
-      const {content, data } = matter(await fs.promises.readFile(inputPath, "utf8"));
-      const { serializeEleventyProps = false, default: component, data: exportData } = await mdx.evaluate(content, { ...runtime });
+      const { content, data } = matter(await fs.promises.readFile(inputPath, "utf8"));
+
+      const clientBundle = await doEsBuild({
+        ...ESBUILD_OPTIONS,
+        platform: 'browser',
+        globalName: 'Component',
+        plugins: [esBuildMDXPlugin({ content: content })],
+        entryPoints: [inputPath],
+      });
+
+      const { serializeEleventyProps = false, default: component, data: exportData } = requireFromString(await doEsBuild({
+        ...ESBUILD_OPTIONS,
+        platform: 'node',
+        plugins: [esBuildMDXPlugin({ content: content })],
+        entryPoints: [inputPath],
+      }));
+
       return {
         data: {
           serializeEleventyProps,
           ___mdx_content: content,
           ___mdx_component: component,
+          ___mdx_clientBundle: clientBundle,
+          components: eleventyConfig.javascriptFunctions,
           ...data,
           ...exportData,
         },
       };
     },
     init: () => { },
-    compile: (permalink, inputPath) => async ({ serializeEleventyProps, ___mdx_content, ___mdx_component, ...props }) => {
+    compile: (permalink) => async ({ serializeEleventyProps, ___mdx_content, ___mdx_component, ___mdx_clientBundle, ...props }) => {
 
-      if(permalink) {
+      if (permalink) {
         return (typeof permalink === 'function') ? permalink(props) : handlebars.compile(permalink)(props);
-      }
-
-      const esbuildOptions = {
-        minify: process.NODE_ENV === "development" ? false : true,
-        external: ['react', 'react-dom'],
-        write: false,
-        plugins: [esBuildMDXPlugin({ content: ___mdx_content })],
-        metafile: true,
-        bundle: true,
-        entryPoints: [inputPath],
       }
 
       let hydrateScript = "";
       if (serializeEleventyProps) {
         hydrateScript = transformSync(`
-        const require = (e) => { if (e ==="react") return window.React; }; 
-        ${await doEsBuild({ platform: 'browser', globalName: 'Component', ...esbuildOptions })};
+        const require = (e) => { if (e ==="react") return window.React; };
+        ${___mdx_clientBundle}
         const props = JSON.parse(${JSON.stringify(JSON.stringify(serializeEleventyProps(props)))});
         ReactDOM.hydrate(React.createElement(Component.default, props, null), document.querySelector('#${ROOT_ID}'));
         `,
@@ -81,8 +97,10 @@ const mdxBuildPlugin = (eleventyConfig, { includeCDNLinks = false } = {}) => {
           }).code;
       }
 
-      const rootComponent = React.createElement("div", { id: ROOT_ID }, React.createElement(___mdx_component, props, null));
+      const rootComponent = React.createElement("div", { id: ROOT_ID}, React.createElement(___mdx_component, props));
+
       if (!serializeEleventyProps) return renderToStaticMarkup(rootComponent);
+
       return `
       ${includeCDNLinks ? `<script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
       <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>`: ""}
