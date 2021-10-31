@@ -86,14 +86,16 @@ class EleventyMDX {
         ___mdx_content: content,
         ___mdx_component: component,
         ___mdx_clientBundle: clientBundle,        
-        props: { components: this.components, ...data, ...exportData }
+         components: this.components, 
+         ...data, 
+         ...exportData 
       },
     };
   }
 
   compile(permalink) {
 
-    return async ({ serializeEleventyProps, ___mdx_content, ___mdx_component, ___mdx_clientBundle, props }) => {
+    return async ({ serializeEleventyProps, ___mdx_content, ___mdx_component, ___mdx_clientBundle, ...props }) => {
 
       if (permalink) {
         return (typeof permalink === 'function') ? permalink(props) : handlebars.compile(permalink)(props);
