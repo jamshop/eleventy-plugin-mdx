@@ -29,7 +29,7 @@ const esBuildMDXPlugin = ({  inputPath }) => ({
       
       if(filePath !== inputPath) {
         const c = await mdx.compile(content);
-        console.log(c.value);
+
         return {
           contents: c.value,
           loader: "jsx",
@@ -114,9 +114,6 @@ class EleventyMDX {
       }
 
       const rootComponent = React.createElement("div", { id: ROOT_ID }, React.createElement(___mdx_component, props));
-
-
-      console.log(___mdx_component)
 
       if (!serializeEleventyProps) return renderToStaticMarkup(rootComponent);
 
