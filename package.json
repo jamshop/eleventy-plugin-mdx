@@ -1,6 +1,6 @@
 {
   "name": "@jamshop/eleventy-plugin-mdx",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "main": "index.js",
   "repository": "jamshop/eleventy-plugin-esbuild",
   "author": {
@@ -10,7 +10,8 @@
   },
   "license": "MIT",
   "scripts": {
-    "build": "npx esbuild ./src/mdx.js --bundle --platform=node --outfile=mdx.js"
+    "build": "npx esbuild ./src/mdx.js --bundle --platform=node --outfile=mdx.js",
+    "test": "ava --verbose"
   },
   "dependencies": {
     "@mdx-js/mdx": "^2.0.0-rc.1",
