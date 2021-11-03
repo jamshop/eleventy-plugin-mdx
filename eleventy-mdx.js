@@ -49,7 +49,7 @@ const doEsBuild = async (options) => {
   return new TextDecoder("utf-8").decode(outputFiles[0].contents);
 }
 
-const getData = async (inputPath, components) => {
+const getData = async (inputPath) => {
   
   const { content, data } = matter(await fs.promises.readFile(inputPath, "utf8"));
 
@@ -75,7 +75,6 @@ const getData = async (inputPath, components) => {
     ___mdx_content: content,
     ___mdx_component: component,
     ___mdx_clientBundle: clientBundle,
-      components,
       htmlTemplate,
       ...data, 
       ...exportData 
@@ -93,11 +92,19 @@ class EleventyMDX {
   }
 
   async getInstanceFromInputPath(inputPath) {
-    return { data: await getData(inputPath, globalStore.components) }
+    return { data: await getData(inputPath) }
   }
 
   compile(permalink, inputPath) {
-    return async function ({...props}) {
+    return async function (props) {
+
+      let components = {}
+
+      for(const key in globalStore.components) {
+        components[key] = globalStore.components[key].bind(props);
+      }
+
+      props = { ...props, components };
 
       if (permalink) {
         if (typeof permalink === 'function')  return permalink(props);
@@ -107,7 +114,7 @@ class EleventyMDX {
 
       const ROOT_ID = `MDX_ROOT_${uuid()}`;
 
-      const { ___mdx_component, ___mdx_clientBundle, htmlTemplate, serializeEleventyProps } = await getData(inputPath, globalStore.components);
+      const { ___mdx_component, ___mdx_clientBundle, htmlTemplate, serializeEleventyProps, } = await getData(inputPath);
 
       let hydrateScript = "";
       if (serializeEleventyProps) {

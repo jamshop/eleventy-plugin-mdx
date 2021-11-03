@@ -1,10 +1,8 @@
 const EleventyMDX = require("./eleventy-mdx");
-const TemplateEngineManager = require("@11ty/eleventy/src/TemplateEngineManager");
 
 const mdxBuildPlugin = (eleventyConfig, { includeCDNLinks = false } = {}) => {
 
-  let templateEngineManager = new TemplateEngineManager(eleventyConfig);
-  const eleventyMDX = new EleventyMDX({includeCDNLinks, components: eleventyConfig.javascriptFunctions, templateEngineManager});
+  const eleventyMDX = new EleventyMDX({includeCDNLinks, components: eleventyConfig.javascriptFunctions });
 
   process.env.ELEVENTY_EXPERIMENTAL = "true";
   eleventyConfig.addTemplateFormats("mdx");
