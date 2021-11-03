@@ -1,8 +1,10 @@
 const EleventyMDX = require("./eleventy-mdx");
+const TemplateEngineManager = require("@11ty/eleventy/src/TemplateEngineManager");
 
 const mdxBuildPlugin = (eleventyConfig, { includeCDNLinks = false } = {}) => {
 
-  const mdxPlugin = new EleventyMDX({includeCDNLinks, components: eleventyConfig.javascriptFunctions});
+  let templateEngineManager = new TemplateEngineManager(eleventyConfig);
+  const eleventyMDX = new EleventyMDX({includeCDNLinks, components: eleventyConfig.javascriptFunctions, templateEngineManager});
 
   process.env.ELEVENTY_EXPERIMENTAL = "true";
   eleventyConfig.addTemplateFormats("mdx");
@@ -10,9 +12,9 @@ const mdxBuildPlugin = (eleventyConfig, { includeCDNLinks = false } = {}) => {
     read: false,
     data: true,
     getData: true,
-    getInstanceFromInputPath: mdxPlugin.getInstanceFromInputPath,
+    getInstanceFromInputPath: eleventyMDX.getInstanceFromInputPath,
     init: () => { },
-    compile: mdxPlugin.compile,
+    compile: eleventyMDX.compile,
   });
 
 };

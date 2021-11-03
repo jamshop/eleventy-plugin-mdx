@@ -3,13 +3,14 @@ const { renderToString, renderToStaticMarkup } = require("react-dom/server");
 const { build, transformSync } = require("esbuild");
 const requireFromString = require('require-from-string');
 const mdx = require("./mdx");
+const { v4: uuid } = require("uuid");
 const fs = require("fs");
+const path = require("path");
 
 // Kinda hate that I am doubling up on gray-matter & handlebars, would love to be able to hook into the existing template engine
 const matter = require('gray-matter');
 const handlebars = require("handlebars");
 
-const ROOT_ID = "MDX_ROOT";
 
 const ESBUILD_OPTIONS = {
   minify: process.NODE_ENV === "development" ? false : true,
@@ -19,19 +20,16 @@ const ESBUILD_OPTIONS = {
   bundle: true,
 }
 
-const esBuildMDXPlugin = ({  inputPath }) => ({
+const esBuildMDXPlugin = ({ inputPath }) => ({
   name: "esbuild-mdx",
   setup(build) {
     build.onLoad({ filter: /\.mdx?$/ }, async ({path: filePath}) => {
-      
-      
+            
       const { content } = matter(await fs.promises.readFile(filePath, "utf8"));
       
       if(filePath !== inputPath) {
-        const c = await mdx.compile(content);
-
         return {
-          contents: c.value,
+          contents: (await mdx.compile(content)).value,
           loader: "jsx",
         }
       }
@@ -51,55 +49,65 @@ const doEsBuild = async (options) => {
   return new TextDecoder("utf-8").decode(outputFiles[0].contents);
 }
 
+const getData = async (inputPath, components) => {
+  
+  const { content, data } = matter(await fs.promises.readFile(inputPath, "utf8"));
+
+  const clientBundle = await doEsBuild({
+    ...ESBUILD_OPTIONS,
+    platform: 'browser',
+    globalName: 'Component',
+    plugins: [esBuildMDXPlugin({ inputPath })],
+    entryPoints: [inputPath],
+  });
+
+  const code = await doEsBuild({
+    ...ESBUILD_OPTIONS,
+    platform: 'node',
+    plugins: [esBuildMDXPlugin({ inputPath })],
+    entryPoints: [inputPath],
+  });
+      
+  const { serializeEleventyProps = false, default: component, htmlTemplate, data: exportData } = requireFromString(code);
+
+  return {
+    serializeEleventyProps,
+    ___mdx_content: content,
+    ___mdx_component: component,
+    ___mdx_clientBundle: clientBundle,
+      components,
+      htmlTemplate,
+      ...data, 
+      ...exportData 
+  };
+
+}
+
+let globalStore = {};
 
 class EleventyMDX {
 
   constructor ({includeCDNLinks, components}) {
-    this.includeCDNLinks = includeCDNLinks;
-    this.components = components;
+    globalStore.includeCDNLinks = includeCDNLinks;
+    globalStore.components = components;
   }
 
   async getInstanceFromInputPath(inputPath) {
-     
-    const { content, data } = matter(await fs.promises.readFile(inputPath, "utf8"));
-
-    const clientBundle = await doEsBuild({
-      ...ESBUILD_OPTIONS,
-      platform: 'browser',
-      globalName: 'Component',
-      plugins: [esBuildMDXPlugin({ inputPath })],
-      entryPoints: [inputPath],
-    });
-
-    const code = await doEsBuild({
-      ...ESBUILD_OPTIONS,
-      platform: 'node',
-      plugins: [esBuildMDXPlugin({ inputPath })],
-      entryPoints: [inputPath],
-    });
-        
-    const { serializeEleventyProps = false, default: component, data: exportData } = requireFromString(code);
-    
-    return {
-      data: {
-        serializeEleventyProps,
-        ___mdx_content: content,
-        ___mdx_component: component,
-        ___mdx_clientBundle: clientBundle,        
-         components: this.components, 
-         ...data, 
-         ...exportData 
-      },
-    };
+    return { data: await getData(inputPath, globalStore.components) }
   }
 
-  compile(permalink) {
-
-    return async ({ serializeEleventyProps, ___mdx_content, ___mdx_component, ___mdx_clientBundle, ...props }) => {
+  compile(permalink, inputPath) {
+    return async function ({...props}) {
 
       if (permalink) {
-        return (typeof permalink === 'function') ? permalink(props) : handlebars.compile(permalink)(props);
+        if (typeof permalink === 'function')  return permalink(props);
+        // ToDo.... would be great to be able to hook into the existing template engine here
+        return handlebars.compile(permalink)(props);
       }
+
+      const ROOT_ID = `MDX_ROOT_${uuid()}`;
+
+      const { ___mdx_component, ___mdx_clientBundle, htmlTemplate, serializeEleventyProps } = await getData(inputPath, globalStore.components);
 
       let hydrateScript = "";
       if (serializeEleventyProps) {
@@ -117,10 +125,23 @@ class EleventyMDX {
 
       const rootComponent = React.createElement("div", { id: ROOT_ID }, React.createElement(___mdx_component, props));
 
-      if (!serializeEleventyProps) return renderToStaticMarkup(rootComponent);
+      if (!serializeEleventyProps) {
+        const content = renderToStaticMarkup(rootComponent);
+
+        if (htmlTemplate) {
+          if (typeof htmlTemplate === 'function') return htmlTemplate(content, props);
+      
+          const templatePath = path.join(path.dirname(inputPath), htmlTemplate);
+          const templateContent = await fs.promises.readFile(templatePath, "utf8");
+          // ToDo.... would be great to be able to hook into the existing template engine here
+          return handlebars.compile(templateContent)({...props, content});
+        }
+
+        return content;
+      };
 
       return `
-        ${this.includeCDNLinks ? `<script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+        ${globalStore.includeCDNLinks ? `<script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
         <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>`: ""}
         ${renderToString(rootComponent)}
         <script>${hydrateScript}</script>`
