@@ -67,8 +67,10 @@ const getData = async (inputPath) => {
     plugins: [esBuildMDXPlugin({ inputPath })],
     entryPoints: [inputPath],
   });
-      
+   
   const { serializeEleventyProps = false, default: component, htmlTemplate, data: exportData } = requireFromString(code);
+
+  console.log({htmlTemplate})
 
   return {
     serializeEleventyProps,
