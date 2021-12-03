@@ -7,8 +7,10 @@ This plugin adds an mdx template format to 11ty.
 Install:
 
 ```js
-npm install @jamshop/eleventy-plugin-mdx
+npm install @jamshop/eleventy-plugin-mdx react react-dom
 ```
+
+Note: `react` and `react-dom` are peer dependencies. You must include these in your 11ty project.
 
 In your 11ty config:
 

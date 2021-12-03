@@ -70,8 +70,6 @@ const getData = async (inputPath) => {
    
   const { serializeEleventyProps = false, default: component, htmlTemplate, data: exportData } = requireFromString(code);
 
-  console.log({htmlTemplate})
-
   return {
     serializeEleventyProps,
     ___mdx_content: content,

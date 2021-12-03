@@ -1,6 +1,6 @@
 {
   "name": "@jamshop/eleventy-plugin-mdx",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "main": "index.js",
   "repository": "jamshop/eleventy-plugin-esbuild",
   "author": {
