@@ -26,3 +26,13 @@ test("imports", async (t) => {
 test("permalink compile", async (t) => {
   t.snapshot(await eleventyMDX.compile("/{{slug}}")({ slug: "test" }));
 });
+
+
+test("test hydration", async (t) => {
+  const src = path.join(__dirname, "./stubs/hydration.mdx");
+  let { data } = await eleventyMDX.getInstanceFromInputPath(src);
+
+  console.log(data.serializeEleventyProps());
+
+  t.snapshot(await eleventyMDX.compile(null, src)(data));
+});

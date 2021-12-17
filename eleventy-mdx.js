@@ -29,7 +29,7 @@ const esBuildMDXPlugin = ({ inputPath }) => ({
       
       if(filePath !== inputPath) {
         return {
-          contents: (await mdx.compile(content)).value,
+          contents: (await mdx.compile(content, { jsxRuntime: 'classic' })).value,
           loader: "jsx",
         }
       }
@@ -112,21 +112,30 @@ class EleventyMDX {
         return handlebars.compile(permalink)(props);
       }
 
-      const ROOT_ID = `MDX_ROOT_${uuid()}`;
 
-      const { ___mdx_component, ___mdx_clientBundle, htmlTemplate, serializeEleventyProps, } = await getData(inputPath);
+      const ROOT_ID = `MDX_ROOT_${process.env.NODE_ENV !== "test" ? uuid() : "test"}`;
+
+      const { ___mdx_component, ___mdx_clientBundle, htmlTemplate, serializeEleventyProps } = await getData(inputPath);
+      
+      if (serializeEleventyProps) {
+        props = { ...serializeEleventyProps(props), ...props };
+      }
+
+
+      console.log({props, inputPath})
 
       let hydrateScript = "";
       if (serializeEleventyProps) {
+        
         hydrateScript = transformSync(`
       const require = (e) => { if (e === "react") return window.React; };
       ${___mdx_clientBundle}
-      const props = JSON.parse(${JSON.stringify(JSON.stringify(serializeEleventyProps(props)))});
+      const props = JSON.parse(${JSON.stringify(JSON.stringify(props))});
       ReactDOM.hydrate(React.createElement(Component.default, props, null), document.querySelector('#${ROOT_ID}'));
       `,
           {
             format: 'iife',
-            minify: true
+            minify: process.NODE_ENV === "development" ? false : true
           }).code;
       }
 
