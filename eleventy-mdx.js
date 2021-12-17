@@ -117,23 +117,24 @@ class EleventyMDX {
 
       const { ___mdx_component, ___mdx_clientBundle, htmlTemplate, serializeEleventyProps } = await getData(inputPath);
       
-      if (serializeEleventyProps) {
-        props = { ...serializeEleventyProps(props), ...props };
-      }
-
       let hydrateScript = "";
       if (serializeEleventyProps) {
         
         hydrateScript = transformSync(`
       const require = (e) => { if (e === "react") return window.React; };
       ${___mdx_clientBundle}
-      const props = JSON.parse(${JSON.stringify(JSON.stringify(props))});
+      const props = JSON.parse(${JSON.stringify(JSON.stringify(serializeEleventyProps(props)))});
       ReactDOM.hydrate(React.createElement(Component.default, props, null), document.querySelector('#${ROOT_ID}'));
       `,
           {
             format: 'iife',
             minify: process.NODE_ENV === "development" ? false : true
           }).code;
+      }
+
+      // Serialize props for static rendering
+      if (serializeEleventyProps) {
+        props = { ...serializeEleventyProps(props), ...props };
       }
 
       const rootComponent = React.createElement("div", { id: ROOT_ID }, React.createElement(___mdx_component, props));
@@ -152,6 +153,7 @@ class EleventyMDX {
 
         return content;
       };
+
 
       return `
         ${globalStore.includeCDNLinks ? `<script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
