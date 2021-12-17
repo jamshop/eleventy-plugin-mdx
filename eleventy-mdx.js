@@ -121,9 +121,6 @@ class EleventyMDX {
         props = { ...serializeEleventyProps(props), ...props };
       }
 
-
-      console.log({props, inputPath})
-
       let hydrateScript = "";
       if (serializeEleventyProps) {
         
