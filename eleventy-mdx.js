@@ -137,7 +137,7 @@ class EleventyMDX {
         props = { ...serializeEleventyProps(props), ...props };
       }
 
-      const rootComponent = mdxFragment ? React.createElement(React.Fragment, { id: ROOT_ID }, React.createElement(___mdx_component, props)) : React.createElement("div", { id: ROOT_ID }, React.createElement(___mdx_component, props));
+      const rootComponent = mdxFragment ? React.createElement(React.Fragment, {}, React.createElement(___mdx_component, props)) : React.createElement("div", { id: ROOT_ID }, React.createElement(___mdx_component, props));
 
       if (!serializeEleventyProps) {
         const content = renderToStaticMarkup(rootComponent);
