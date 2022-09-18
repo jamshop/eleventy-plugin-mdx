@@ -24,13 +24,22 @@ const esBuildMDXPlugin = ({ inputPath }) => ({
   name: "esbuild-mdx",
   setup(build) {
     build.onLoad({ filter: /\.mdx?$/ }, async ({path: filePath}) => {
-            
-      const { content } = matter(await fs.promises.readFile(filePath, "utf8"));
+      
+      let content
+      try {
+        content = matter(await fs.promises.readFile(filePath, "utf8")).content;
+      } catch (err) {
+        throw new Error(`Error parsing gray matter in '${filePath}'. Error: ${err.message}`);
+      }
       
       if(filePath !== inputPath) {
-        return {
-          contents: (await mdx.compile(content, { jsxRuntime: 'classic' })).value,
-          loader: "jsx",
+        try {
+          return {
+            contents: (await mdx.compile(content, { jsxRuntime: 'classic' })).value,
+            loader: "jsx",
+          }
+        } catch (err) {
+          throw new Error(`Error parsing mdx content in '${inputPath}'. Error: ${err.message}`);
         }
       }
 
@@ -53,20 +62,30 @@ const getData = async (inputPath) => {
   
   const { content, data } = matter(await fs.promises.readFile(inputPath, "utf8"));
 
-  const clientBundle = await doEsBuild({
-    ...ESBUILD_OPTIONS,
-    platform: 'browser',
-    globalName: 'Component',
-    plugins: [esBuildMDXPlugin({ inputPath })],
-    entryPoints: [inputPath],
-  });
+  let clientBundle
+  try {
+    clientBundle = await doEsBuild({
+      ...ESBUILD_OPTIONS,
+      platform: 'browser',
+      globalName: 'Component',
+      plugins: [esBuildMDXPlugin({ inputPath })],
+      entryPoints: [inputPath],
+    });
+  } catch (err) {
+    throw new Error([err], `Error creating esbuild bundle from '${inputPath}'. Error: ${err.message}`)
+  }
 
-  const code = await doEsBuild({
-    ...ESBUILD_OPTIONS,
-    platform: 'node',
-    plugins: [esBuildMDXPlugin({ inputPath })],
-    entryPoints: [inputPath],
-  });
+  let code
+  try {
+    code = await doEsBuild({
+      ...ESBUILD_OPTIONS,
+      platform: 'node',
+      plugins: [esBuildMDXPlugin({ inputPath })],
+      entryPoints: [inputPath],
+    });
+  } catch (err) {
+    throw new Error(`Error creating esbuild of code from '${inputPath}'. Error: ${err.message}`)
+  }
    
   const { serializeEleventyProps = false, default: component, htmlTemplate, data: exportData } = requireFromString(code);
 
@@ -115,7 +134,7 @@ class EleventyMDX {
 
       const ROOT_ID = `MDX_ROOT_${process.env.NODE_ENV !== "test" ? uuid() : "test"}`;
 
-      const { ___mdx_component, ___mdx_clientBundle, htmlTemplate, serializeEleventyProps } = await getData(inputPath);
+      const { ___mdx_component, ___mdx_clientBundle, htmlTemplate, serializeEleventyProps, mdxFragment } = await getData(inputPath);
       
       let hydrateScript = "";
       if (serializeEleventyProps) {
@@ -137,7 +156,7 @@ class EleventyMDX {
         props = { ...serializeEleventyProps(props), ...props };
       }
 
-      const rootComponent = React.createElement("div", { id: ROOT_ID }, React.createElement(___mdx_component, props));
+      const rootComponent = mdxFragment ? React.createElement(React.Fragment, {}, React.createElement(___mdx_component, props)) : React.createElement("div", { id: ROOT_ID }, React.createElement(___mdx_component, props));
 
       if (!serializeEleventyProps) {
         const content = renderToStaticMarkup(rootComponent);
