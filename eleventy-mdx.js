@@ -115,7 +115,7 @@ class EleventyMDX {
 
       const ROOT_ID = `MDX_ROOT_${process.env.NODE_ENV !== "test" ? uuid() : "test"}`;
 
-      const { ___mdx_component, ___mdx_clientBundle, htmlTemplate, serializeEleventyProps } = await getData(inputPath);
+      const { ___mdx_component, ___mdx_clientBundle, htmlTemplate, serializeEleventyProps, mdxFragment } = await getData(inputPath);
       
       let hydrateScript = "";
       if (serializeEleventyProps) {
@@ -137,7 +137,7 @@ class EleventyMDX {
         props = { ...serializeEleventyProps(props), ...props };
       }
 
-      const rootComponent = React.createElement("div", { id: ROOT_ID }, React.createElement(___mdx_component, props));
+      const rootComponent = mdxFragment ? React.createElement(React.Fragment, {}, React.createElement(___mdx_component, props)) : React.createElement("div", { id: ROOT_ID }, React.createElement(___mdx_component, props));
 
       if (!serializeEleventyProps) {
         const content = renderToStaticMarkup(rootComponent);
